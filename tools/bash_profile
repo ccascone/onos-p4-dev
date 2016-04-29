@@ -1,0 +1,66 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export P4_PATH="$( readlink -f "${DIR}/.." )"
+export BMV2_PATH=$P4_PATH/bmv2
+export P4C_BM_PATH=$P4_PATH/p4c-bmv2
+export P4SRC_PATH=$P4_PATH/p4src
+
+touch /tmp/p4env
+
+p4mn () {
+
+    if [ -z "$1" ]; then
+        echo "No argument supplied. Usage: p4mn P4_PROGRAM_NAME"
+        return
+    fi
+
+    mkdir -p $P4SRC_PATH/build
+
+    export CURR_P4SRC="$P4SRC_PATH/$1.p4"
+    export CURR_P4JSON="$P4SRC_PATH/build/$1.json"
+
+    if [ ! -f $CURR_P4SRC ]
+        then
+          echo "No such file $CURR_P4SRC"
+          return
+    fi
+
+    # compile json if outdated
+    if test $CURR_P4SRC -nt $CURR_P4JSON; then
+        # FIXME: p4c-bmv2 doesn't work without sudo
+        sudo p4c-bmv2 --json $CURR_P4JSON $CURR_P4SRC
+    fi
+
+    # export env to file, (helpful when working with multiple terminal windows)
+    export -p > /tmp/p4env
+    
+    sudo python $BMV2_PATH/mininet/1sw_demo.py --behavioral-exe $BMV2_PATH/targets/simple_switch/simple_switch --json $CURR_P4JSON --debugger TRUE --mode l2
+}
+
+p4dbg () {
+    source /tmp/p4env
+    sudo $BMV2_PATH/tools/p4dbg.py --json $CURR_P4JSON 
+}
+
+p4watch () {
+
+    if [ -z "$1" ]; then
+        echo "No argument supplied. Usage: p4watch TABLE_NAME"
+        return
+    fi
+
+    source /tmp/p4env
+    watch -n1 "echo table_dump $1 | $BMV2_PATH/tools/runtime_CLI.py --json $CURR_P4JSON"
+}
+
+p4nmsg () {
+    source /tmp/p4env
+    sudo $BMV2_PATH/tools/nanomsg_client.py --json $CURR_P4JSON --socket ipc:///tmp/bm-0-log.ipc
+}
+
+p4log () {
+    source /tmp/p4env
+    tail -f /tmp/p4s.s1.log
+}
