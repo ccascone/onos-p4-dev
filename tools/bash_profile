@@ -36,7 +36,67 @@ p4mn () {
     # export env to file, (helpful when working with multiple terminal windows)
     export -p > /tmp/p4env
     
-    sudo python $BMV2_PATH/mininet/1sw_demo.py --behavioral-exe $BMV2_PATH/targets/simple_switch/simple_switch --json $CURR_P4JSON --debugger TRUE --mode l2
+    sudo python $P4_PATH/demo/1sw.py --behavioral-exe $BMV2_PATH/targets/simple_switch/simple_switch --json $CURR_P4JSON
+}
+
+p4quad () {
+
+    if [ -z "$1" ]; then
+        echo "No argument supplied. Usage: p4mn P4_PROGRAM_NAME"
+        return
+    fi
+
+    mkdir -p $P4SRC_PATH/build
+
+    export CURR_P4SRC="$P4SRC_PATH/$1.p4"
+    export CURR_P4JSON="$P4SRC_PATH/build/$1.json"
+
+    if [ ! -f $CURR_P4SRC ]
+        then
+          echo "No such file $CURR_P4SRC"
+          return
+    fi
+
+    # compile json if outdated
+    if test $CURR_P4SRC -nt $CURR_P4JSON; then
+        # FIXME: p4c-bmv2 doesn't work without sudo
+        sudo p4c-bmv2 --json $CURR_P4JSON $CURR_P4SRC
+    fi
+
+    # export env to file, (helpful when working with multiple terminal windows)
+    export -p > /tmp/p4env
+    
+    sudo python $BMV2_PATH/mininet/comb_demo.py --behavioral-exe $BMV2_PATH/targets/simple_switch/simple_switch --json $CURR_P4JSON --debugger TRUE
+}
+
+p4clos () {
+
+    if [ -z "$1" ]; then
+        echo "No argument supplied. Usage: p4mn P4_PROGRAM_NAME"
+        return
+    fi
+
+    mkdir -p $P4SRC_PATH/build
+
+    export CURR_P4SRC="$P4SRC_PATH/$1.p4"
+    export CURR_P4JSON="$P4SRC_PATH/build/$1.json"
+
+    if [ ! -f $CURR_P4SRC ]
+        then
+          echo "No such file $CURR_P4SRC"
+          return
+    fi
+
+    # compile json if outdated
+    if test $CURR_P4SRC -nt $CURR_P4JSON; then
+        # FIXME: p4c-bmv2 doesn't work without sudo
+        sudo p4c-bmv2 --json $CURR_P4JSON $CURR_P4SRC
+    fi
+
+    # export env to file, (helpful when working with multiple terminal windows)
+    export -p > /tmp/p4env
+    
+    sudo python $P4_PATH/demo/2-stage_clos.py --behavioral-exe $BMV2_PATH/targets/simple_switch/simple_switch --json $CURR_P4JSON
 }
 
 p4dbg () {
@@ -52,7 +112,7 @@ p4watch () {
     fi
 
     source /tmp/p4env
-    watch -n1 "echo table_dump $1 | $BMV2_PATH/tools/runtime_CLI.py --json $CURR_P4JSON"
+    watch -n2 "echo table_dump $1 | $BMV2_PATH/tools/runtime_CLI.py --json $CURR_P4JSON"
 }
 
 p4nmsg () {
@@ -61,6 +121,11 @@ p4nmsg () {
 }
 
 p4log () {
+    if [ -z "$1" ]; then
+        echo "No argument supplied. Usage: p4log DEVICE_ID"
+        return
+    fi
+
     source /tmp/p4env
-    tail -f /tmp/p4s.s1.log
+    tail -f /tmp/p4s.s$1.log
 }
