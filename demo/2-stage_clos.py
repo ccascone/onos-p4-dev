@@ -64,7 +64,7 @@ class ClosTopo(Topo):
         for hostId in (1, 2, 3):
             host = self.addHost("h%d" % hostId,
                                 ip="10.0.0.%d/24" % hostId,
-                                mac='00:04:00:00:%02x:01' % hostId)
+                                mac='00:00:00:00:00:%02x' % hostId)
             self.addLink(host, bmv2Switches["s1%d" % hostId])
 
 
@@ -85,7 +85,7 @@ def main(args):
     net.build()
     net.start()
 
-    sleep(5)
+    sleep(8)
 
     print "Ready! Starting traffic..."
 
@@ -96,7 +96,9 @@ def main(args):
     for h in net.hosts:
         h.startIperfServer()
 
-    net.hosts[0].startIperfClient(net.hosts[-1], flowBw="200k", numFlows=80, duration=10)
+    sleep(2)
+
+    net.hosts[0].startIperfClient(net.hosts[-1], flowBw="250k", numFlows=80, duration=10)
 
     CLI(net)
 

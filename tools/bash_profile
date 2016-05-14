@@ -112,7 +112,7 @@ p4watch () {
     fi
 
     source /tmp/p4env
-    watch -n2 "echo table_dump $1 | $BMV2_PATH/tools/runtime_CLI.py --json $CURR_P4JSON"
+    watch -n1 "echo table_dump $1 | $BMV2_PATH/tools/runtime_CLI.py"
 }
 
 p4nmsg () {

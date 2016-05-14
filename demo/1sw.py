@@ -35,7 +35,7 @@ class SingleSwitchTopo(Topo):
 
         bmv2SwitchParams = dict(sw_path=sw_path,
                                 json_path=json_path,
-                                debugger=True,
+                                debugger=False,
                                 loglevel="debug",
                                 persistent=False,
                                 gdb=False)

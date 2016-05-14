@@ -49,6 +49,7 @@ class P4Host(Host):
 
     def startPingBg(self, h):
         self.loopCmdBg("ping %s" % h.IP())
+        self.loopCmdBg("arping %s" % h.IP())
 
     def startIperfServer(self):
         self.loopCmdBg("iperf3 -s")
@@ -122,7 +123,7 @@ class P4Switch(Switch):
                                                                                  sleepSeconds, logfile)
         else:
             c= "{} > {} 2>&1 &".format(cmdString, logfile)
-        print c
+        # print c
         self.cmd(c)
 
     def start(self, controllers):

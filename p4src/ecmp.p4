@@ -7,7 +7,7 @@
 header_type ecmp_metadata_t {
     fields {
         groupId : 16;
-        hash : 16;
+        selector : 16;
     }
 }
 
@@ -16,59 +16,32 @@ metadata ecmp_metadata_t ecmp_metadata;
 field_list ecmp_hash_fields {
     ipv4.srcAddr;
     ipv4.dstAddr;
+    ipv4.protocol;
     tcp.srcPort;
     tcp.dstPort;
+    udp.srcPort;
+    udp.dstPort;
 }
 
 field_list_calculation ecmp_hash {
     input {
         ecmp_hash_fields;
     }
-    algorithm : crc16;
-    output_width : 16;
+    algorithm : crc32;
+    output_width : 32;
 }
 
-action ecmp_group(groupId, numPorts) {
+action ecmp_group(groupId, groupSize) {
     modify_field(ecmp_metadata.groupId, groupId);
-    // The modify_field_with_hash_based_offset works in this way (base + (hash_value % size))
-    // e.g. if we want to select a port between 0 and 4 we use: (0 + (hash_value % 4))
-    modify_field_with_hash_based_offset(ecmp_metadata.hash, 0, ecmp_hash, numPorts);
-}
-
-table ecmp_group_table {
-    reads {
-        ecmp_metadata.groupId : ternary;
-        ecmp_metadata.hash : ternary;
-    }
-    actions {
-        set_egress_port;
-    }
-}
-
-/* Port counters */
-counter ingress_counter {
-    type : packets; // bmv2 always counts both bytes and packets 
-    instance_count : 1024;
-    min_width : 32;
-}
-
-counter egress_counter {
-    type: packets;
-    instance_count : 1024;
-    min_width : 32;
+    // The modify_field_with_hash_based_offset works in this way (base + (hash_value % groupSize))
+    // e.g. if we want to select a port number between 0 and 4 we use: (0 + (hash_value % 5))
+    modify_field_with_hash_based_offset(ecmp_metadata.selector, 0, ecmp_hash, groupSize);
 }
 
 action count_packet() {
     count(ingress_counter, standard_metadata.ingress_port);
     count(egress_counter, standard_metadata.egress_spec);
 }
-
-table port_count {
-    actions {
-        count_packet;
-    }
-}
-
 
 /* Main table */
 table table0 {
@@ -87,12 +60,46 @@ table table0 {
     support_timeout: true;
 }
 
-/* Table 0 counters */
-// counter table0_counter {
-//    type: packets;
-//    direct: table0;
-//    min_width : 32;
-//}
+table ecmp_group_table {
+    reads {
+        ecmp_metadata.groupId : exact;
+        ecmp_metadata.selector : exact;
+    }
+    actions {
+        set_egress_port;
+    }
+}
+
+table port_count {
+    actions {
+        count_packet;
+    }
+}
+
+counter table0_counter {
+    type: packets;
+    direct: table0;
+    min_width : 32;
+}
+
+counter ecmp_group_table_counter {
+    type: packets;
+    direct: ecmp_group_table;
+    min_width : 32;
+}
+
+
+counter ingress_counter {
+    type : packets; // bmv2 always counts both bytes and packets 
+    instance_count : 1024;
+    min_width : 32;
+}
+
+counter egress_counter {
+    type: packets;
+    instance_count : 1024;
+    min_width : 32;
+}
 
 /* Control flow */
 control ingress {
@@ -101,7 +108,6 @@ control ingress {
             apply(ecmp_group_table);
         }
     }
-    // count tx packets
-    // TODO (Carmelo): put this in egress pipeline
+    
     apply(port_count);
 }
