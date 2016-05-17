@@ -3,17 +3,21 @@
 #include "include/std_parser.p4"
 #include "include/std_actions.p4"
 
-/* ECMP machinery */
-header_type ecmp_metadata_t {
+#define SELECTOR_WIDTH 128
+
+/* wcmp machinery */
+header_type wcmp_meta_t {
     fields {
         groupId : 16;
-        selector : 16;
+        numBits: 16; // TODO dependent on SELECTOR_WIDTH
+        selector : SELECTOR_WIDTH;
     }
 }
 
-metadata ecmp_metadata_t ecmp_metadata;
+metadata wcmp_meta_t wcmp_meta;
 
-field_list ecmp_hash_fields {
+field_list wcmp_hash_fields {
+    intrinsic_metadata.ingress_global_timestamp;
     ethernet.dstAddr;
     ethernet.srcAddr;
     ipv4.srcAddr;
@@ -25,19 +29,26 @@ field_list ecmp_hash_fields {
     udp.dstPort;
 }
 
-field_list_calculation ecmp_hash {
+field_list_calculation wcmp_hash {
     input {
-        ecmp_hash_fields;
+        wcmp_hash_fields;
     }
     algorithm : crc32;
     output_width : 32;
 }
 
-action ecmp_group(groupId, groupSize) {
-    modify_field(ecmp_metadata.groupId, groupId);
-    // The modify_field_with_hash_based_offset works in this way (base + (hash_value % groupSize))
-    // e.g. if we want to select a port number between 0 and 4 we use: (0 + (hash_value % 5))
-    modify_field_with_hash_based_offset(ecmp_metadata.selector, 0, ecmp_hash, groupSize);
+action wcmp_group(groupId) {
+    modify_field(wcmp_meta.groupId, groupId);
+    // GENERATE A SELECTOR with the first x bits set to 1, where x is the result of hash
+    modify_field_with_hash_based_offset(wcmp_meta.numBits, // dest field
+                                        2, // base
+                                        wcmp_hash, // hash calculation
+                                        (SELECTOR_WIDTH - 2)); // size (modulo divisor)
+}
+
+action wcmp_set_selector() {
+    modify_field(wcmp_meta.selector,
+                 (((1 << wcmp_meta.numBits) - 1) << (SELECTOR_WIDTH - wcmp_meta.numBits)));
 }
 
 action count_packet() {
@@ -55,17 +66,23 @@ table table0 {
     }
     actions {
         set_egress_port;
-        ecmp_group;
+        wcmp_group;
         send_to_cpu;
         _drop;
     }
     support_timeout: true;
 }
 
-table ecmp_group_table {
+table wcmp_set_selector_table {
+    actions {
+        wcmp_set_selector;
+    }
+}
+
+table wcmp_group_table {
     reads {
-        ecmp_metadata.groupId : exact;
-        ecmp_metadata.selector : exact;
+        wcmp_meta.groupId : exact;
+        wcmp_meta.selector : lpm;
     }
     actions {
         set_egress_port;
@@ -84,9 +101,9 @@ counter table0_counter {
     min_width : 32;
 }
 
-counter ecmp_group_table_counter {
+counter wcmp_group_table_counter {
     type: packets;
-    direct: ecmp_group_table;
+    direct: wcmp_group_table;
     min_width : 32;
 }
 
@@ -106,8 +123,12 @@ counter egress_counter {
 /* Control flow */
 control ingress {
     apply(table0) {
-        ecmp_group { // ecmp action was used
-            apply(ecmp_group_table);
+        wcmp_group { // wcmp action was used
+            apply(wcmp_set_selector_table) {
+                wcmp_set_selector {
+                    apply(wcmp_group_table);
+                }
+            }
         }
     }
     
