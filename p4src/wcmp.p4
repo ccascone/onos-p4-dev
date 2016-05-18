@@ -9,7 +9,7 @@
 header_type wcmp_meta_t {
     fields {
         groupId : 16;
-        numBits: 16; // TODO dependent on SELECTOR_WIDTH
+        numBits: 8;
         selector : SELECTOR_WIDTH;
     }
 }
@@ -17,7 +17,6 @@ header_type wcmp_meta_t {
 metadata wcmp_meta_t wcmp_meta;
 
 field_list wcmp_hash_fields {
-    intrinsic_metadata.ingress_global_timestamp;
     ethernet.dstAddr;
     ethernet.srcAddr;
     ipv4.srcAddr;
@@ -39,9 +38,8 @@ field_list_calculation wcmp_hash {
 
 action wcmp_group(groupId) {
     modify_field(wcmp_meta.groupId, groupId);
-    // GENERATE A SELECTOR with the first x bits set to 1, where x is the result of hash
     modify_field_with_hash_based_offset(wcmp_meta.numBits, // dest field
-                                        2, // base
+                                        2, // base 
                                         wcmp_hash, // hash calculation
                                         (SELECTOR_WIDTH - 2)); // size (modulo divisor)
 }

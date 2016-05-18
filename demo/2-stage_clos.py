@@ -37,7 +37,7 @@ class ClosTopo(Topo):
         bmv2SwitchParams = dict(sw_path=sw_path,
                                 json_path=json_path,
                                 debugger=False,
-                                loglevel="debug",
+                                loglevel="warn",
                                 persistent=True)
 
         bmv2SwitchIds = ["s11", "s12", "s13", "s21", "s22", "s23"]
