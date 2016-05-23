@@ -1,9 +1,10 @@
-#include "include/std_defines.p4"
-#include "include/std_headers.p4"
-#include "include/std_parser.p4"
-#include "include/std_actions.p4"
+#include "include/defines.p4"
+#include "include/headers.p4"
+#include "include/parser.p4"
+#include "include/actions.p4"
+#include "include/port_counters.p4"
 
-#define SELECTOR_WIDTH 128
+#define SELECTOR_WIDTH 64
 
 /* wcmp machinery */
 header_type wcmp_meta_t {
@@ -17,8 +18,6 @@ header_type wcmp_meta_t {
 metadata wcmp_meta_t wcmp_meta;
 
 field_list wcmp_hash_fields {
-    ethernet.dstAddr;
-    ethernet.srcAddr;
     ipv4.srcAddr;
     ipv4.dstAddr;
     ipv4.protocol;
@@ -32,8 +31,8 @@ field_list_calculation wcmp_hash {
     input {
         wcmp_hash_fields;
     }
-    algorithm : crc32;
-    output_width : 32;
+    algorithm : bmv2_hash;
+    output_width : 64;
 }
 
 action wcmp_group(groupId) {
@@ -47,11 +46,6 @@ action wcmp_group(groupId) {
 action wcmp_set_selector() {
     modify_field(wcmp_meta.selector,
                  (((1 << wcmp_meta.numBits) - 1) << (SELECTOR_WIDTH - wcmp_meta.numBits)));
-}
-
-action count_packet() {
-    count(ingress_counter, standard_metadata.ingress_port);
-    count(egress_counter, standard_metadata.egress_spec);
 }
 
 /* Main table */
@@ -87,12 +81,6 @@ table wcmp_group_table {
     }
 }
 
-table port_count {
-    actions {
-        count_packet;
-    }
-}
-
 counter table0_counter {
     type: packets;
     direct: table0;
@@ -105,21 +93,9 @@ counter wcmp_group_table_counter {
     min_width : 32;
 }
 
-
-counter ingress_counter {
-    type : packets; // bmv2 always counts both bytes and packets 
-    instance_count : 1024;
-    min_width : 32;
-}
-
-counter egress_counter {
-    type: packets;
-    instance_count : 1024;
-    min_width : 32;
-}
-
 /* Control flow */
 control ingress {
+    
     apply(table0) {
         wcmp_group { // wcmp action was used
             apply(wcmp_set_selector_table) {
@@ -130,5 +106,5 @@ control ingress {
         }
     }
     
-    apply(port_count);
+    process_port_counters();
 }

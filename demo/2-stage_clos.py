@@ -85,9 +85,9 @@ def main(args):
     net.build()
     net.start()
 
-    sleep(8)
+    print "Network started..."
 
-    print "Ready! Starting traffic..."
+    sleep(4)
 
     for (h1, h2) in combinations(net.hosts, 2):
         h1.startPingBg(h2)
@@ -96,9 +96,13 @@ def main(args):
     for h in net.hosts:
         h.startIperfServer()
 
-    sleep(2)
+    print "Background ping started..."
 
-    net.hosts[0].startIperfClient(net.hosts[-1], flowBw="250k", numFlows=80, duration=10)
+    sleep(4)
+
+    print "Starting traffic from h1 to h3..."
+
+    # net.hosts[0].startIperfClient(net.hosts[-1], flowBw="200k", numFlows=100, duration=10)
 
     CLI(net)
 

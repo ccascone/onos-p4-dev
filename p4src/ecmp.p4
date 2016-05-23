@@ -1,7 +1,8 @@
-#include "include/std_defines.p4"
-#include "include/std_headers.p4"
-#include "include/std_parser.p4"
-#include "include/std_actions.p4"
+#include "include/defines.p4"
+#include "include/headers.p4"
+#include "include/parser.p4"
+#include "include/actions.p4"
+#include "include/port_counters.p4"
 
 /* ECMP machinery */
 header_type ecmp_metadata_t {
@@ -14,8 +15,6 @@ header_type ecmp_metadata_t {
 metadata ecmp_metadata_t ecmp_metadata;
 
 field_list ecmp_hash_fields {
-    ethernet.dstAddr;
-    ethernet.srcAddr;
     ipv4.srcAddr;
     ipv4.dstAddr;
     ipv4.protocol;
@@ -29,20 +28,14 @@ field_list_calculation ecmp_hash {
     input {
         ecmp_hash_fields;
     }
-    algorithm : crc32;
-    output_width : 32;
+    algorithm : bmv2_hash;
+    output_width : 64;
 }
 
 action ecmp_group(groupId, groupSize) {
     modify_field(ecmp_metadata.groupId, groupId);
-    // The modify_field_with_hash_based_offset works in this way (base + (hash_value % groupSize))
-    // e.g. if we want to select a port number between 0 and 4 we use: (0 + (hash_value % 5))
+    // If we want to select a port number between 0 and 4 we use: (0 + (hash_value % 5))
     modify_field_with_hash_based_offset(ecmp_metadata.selector, 0, ecmp_hash, groupSize);
-}
-
-action count_packet() {
-    count(ingress_counter, standard_metadata.ingress_port);
-    count(egress_counter, standard_metadata.egress_spec);
 }
 
 /* Main table */
@@ -72,12 +65,6 @@ table ecmp_group_table {
     }
 }
 
-table port_count {
-    actions {
-        count_packet;
-    }
-}
-
 counter table0_counter {
     type: packets;
     direct: table0;
@@ -90,26 +77,13 @@ counter ecmp_group_table_counter {
     min_width : 32;
 }
 
-
-counter ingress_counter {
-    type : packets; // bmv2 always counts both bytes and packets 
-    instance_count : 1024;
-    min_width : 32;
-}
-
-counter egress_counter {
-    type: packets;
-    instance_count : 1024;
-    min_width : 32;
-}
-
-/* Control flow */
 control ingress {
+
     apply(table0) {
         ecmp_group { // ecmp action was used
             apply(ecmp_group_table);
         }
     }
     
-    apply(port_count);
+    process_port_counters();
 }
