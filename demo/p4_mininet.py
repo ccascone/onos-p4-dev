@@ -48,8 +48,8 @@ class P4Host(Host):
                                                                                  sleepSeconds, logfile))
 
     def startPingBg(self, h):
-        self.loopCmdBg("ping %s" % h.IP())
-        self.loopCmdBg("arping %s" % h.IP())
+        self.loopCmdBg("ping -i0.5 %s" % h.IP())
+        self.loopCmdBg("arping -w5000000 %s" % h.IP())
 
     def startIperfServer(self):
         self.loopCmdBg("iperf3 -s")

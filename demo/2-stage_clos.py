@@ -26,6 +26,7 @@ from p4_mininet import P4Switch, P4Host
 import argparse
 from time import sleep
 
+thrift_ports = {}
 
 class ClosTopo(Topo):
     "2 stage Clos topology"
@@ -46,26 +47,52 @@ class ClosTopo(Topo):
 
         count = 0
         for switchId in bmv2SwitchIds:
+            tport = base_thrift_port + count
             bmv2Switches[switchId] = self.addSwitch(switchId,
-                                                    thrift_port=base_thrift_port + count,
+                                                    thrift_port=tport,
                                                     device_id=int(switchId[1:]),
                                                     **bmv2SwitchParams)
+            thrift_ports[switchId] = tport
             count += 1
+
+        links = []
 
         for i in (1, 2, 3):
             for j in (1, 2, 3):
                 if i == j:
                     # 2 links
-                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j])
-                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j])
+                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j], bw=50)
+                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j], bw=50)
                 else:
-                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j])
+                    self.addLink(bmv2Switches["s1%d" % i], bmv2Switches["s2%d" % j], bw=50)
 
         for hostId in (1, 2, 3):
             host = self.addHost("h%d" % hostId,
                                 ip="10.0.0.%d/24" % hostId,
                                 mac='00:00:00:00:00:%02x' % hostId)
-            self.addLink(host, bmv2Switches["s1%d" % hostId])
+            self.addLink(host, bmv2Switches["s1%d" % hostId], bw=21)
+
+            # printConf(links)
+
+
+def printConf(links):
+    for link in links:
+        intf1 = link.intf1
+        intf2 = link.intf2
+        node1 = intf1.node
+        node2 = intf2.node
+        if node1.name[0:1] == "h" or node2.name[0:1] == "h":
+            continue
+        port1 = node1.ports[intf1]
+        port2 = node2.ports[intf2]
+        params1 = node1.params
+        params2 = node2.params
+        src = "bmv2:192.168.57.100:{}#{}/{}".format(thrift_ports[node1.name], node1.name[1:], port1)
+        dst = "bmv2:192.168.57.100:{}#{}/{}".format(thrift_ports[node2.name], node2.name[1:], port2)
+        linkKeyFw = src + "-" + dst
+        linkKeyBw = dst + "-" + src
+        print linkKeyFw
+        print linkKeyBw
 
 
 def main(args):
@@ -78,12 +105,15 @@ def main(args):
                   switch=P4Switch,
                   controller=None,
                   build=False,
-                  autoSetMacs=True)
+                  autoSetMacs=True,
+                  link=TCLink)
 
     # net.addController( 'c0', controller=RemoteController, ip="192.168.57.1", port=6633)
 
     net.build()
     net.start()
+
+    #printConf(net.links)
 
     print "Network started..."
 
@@ -100,13 +130,13 @@ def main(args):
 
     sleep(4)
 
-    print "Starting traffic from h1 to h3..."
-
+    #print "Starting traffic from h1 to h3..."
     # net.hosts[0].startIperfClient(net.hosts[-1], flowBw="200k", numFlows=100, duration=10)
 
     CLI(net)
 
     net.stop()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='2-stage Clos Bmv2 Mininet Demo')
