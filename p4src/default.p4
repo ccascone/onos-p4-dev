@@ -17,6 +17,7 @@ table table0 {
         send_to_cpu;
         _drop;
     }
+    support_timeout: true;
 }
 
 counter table0_counter {

@@ -14,32 +14,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from mininet.link import TCLink
-from mininet.net import Mininet
-from mininet.topo import Topo
-from mininet.log import setLogLevel, info
-from mininet.cli import CLI
-from itertools import combinations
-
-from p4_mininet import P4Switch, P4Host
-
 import argparse
+from itertools import combinations
 from time import sleep
 
+from bmv2 import ONOSBmv2Switch
+from demo import DemoHost
+from mininet.cli import CLI
+from mininet.link import TCLink
+from mininet.log import setLogLevel
+from mininet.net import Mininet
+from mininet.node import RemoteController
+from mininet.topo import Topo
+
 thrift_ports = {}
+
 
 class ClosTopo(Topo):
     "2 stage Clos topology"
 
-    def __init__(self, sw_path, json_path, base_thrift_port, **opts):
+    def __init__(self, json_path, base_thrift_port, **opts):
         # Initialize topology and default options
         Topo.__init__(self, **opts)
 
-        bmv2SwitchParams = dict(sw_path=sw_path,
+        bmv2SwitchParams = dict(cls=ONOSBmv2Switch,
                                 json_path=json_path,
                                 debugger=False,
-                                loglevel="warn",
-                                persistent=True)
+                                loglevel="warn")
 
         bmv2SwitchIds = ["s11", "s12", "s13", "s21", "s22", "s23"]
 
@@ -49,13 +50,11 @@ class ClosTopo(Topo):
         for switchId in bmv2SwitchIds:
             tport = base_thrift_port + count
             bmv2Switches[switchId] = self.addSwitch(switchId,
-                                                    thrift_port=tport,
                                                     device_id=int(switchId[1:]),
+                                                    thrift_port=tport,
                                                     **bmv2SwitchParams)
             thrift_ports[switchId] = tport
             count += 1
-
-        links = []
 
         for i in (1, 2, 3):
             for j in (1, 2, 3):
@@ -68,56 +67,28 @@ class ClosTopo(Topo):
 
         for hostId in (1, 2, 3):
             host = self.addHost("h%d" % hostId,
+                                cls=DemoHost,
                                 ip="10.0.0.%d/24" % hostId,
                                 mac='00:00:00:00:00:%02x' % hostId)
-            self.addLink(host, bmv2Switches["s1%d" % hostId], bw=21)
-
-            # printConf(links)
-
-
-def printConf(links):
-    for link in links:
-        intf1 = link.intf1
-        intf2 = link.intf2
-        node1 = intf1.node
-        node2 = intf2.node
-        if node1.name[0:1] == "h" or node2.name[0:1] == "h":
-            continue
-        port1 = node1.ports[intf1]
-        port2 = node2.ports[intf2]
-        params1 = node1.params
-        params2 = node2.params
-        src = "bmv2:192.168.57.100:{}#{}/{}".format(thrift_ports[node1.name], node1.name[1:], port1)
-        dst = "bmv2:192.168.57.100:{}#{}/{}".format(thrift_ports[node2.name], node2.name[1:], port2)
-        linkKeyFw = src + "-" + dst
-        linkKeyBw = dst + "-" + src
-        print linkKeyFw
-        print linkKeyBw
+            self.addLink(host, bmv2Switches["s1%d" % hostId], bw=22)
 
 
 def main(args):
-    topo = ClosTopo(sw_path=args.behavioral_exe,
-                    json_path=args.json,
+    topo = ClosTopo(json_path=args.json,
                     base_thrift_port=args.thrift_port)
 
     net = Mininet(topo=topo,
-                  host=P4Host,
-                  switch=P4Switch,
-                  controller=None,
                   build=False,
-                  autoSetMacs=True,
                   link=TCLink)
 
-    # net.addController( 'c0', controller=RemoteController, ip="192.168.57.1", port=6633)
+    net.addController('c0', controller=RemoteController, ip=args.onos_ip, port=args.onos_port)
 
     net.build()
     net.start()
 
-    #printConf(net.links)
-
     print "Network started..."
 
-    sleep(4)
+    sleep(3)
 
     for (h1, h2) in combinations(net.hosts, 2):
         h1.startPingBg(h2)
@@ -130,7 +101,7 @@ def main(args):
 
     sleep(4)
 
-    #print "Starting traffic from h1 to h3..."
+    # print "Starting traffic from h1 to h3..."
     # net.hosts[0].startIperfClient(net.hosts[-1], flowBw="200k", numFlows=100, duration=10)
 
     CLI(net)
@@ -140,12 +111,14 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='2-stage Clos Bmv2 Mininet Demo')
-    parser.add_argument('--behavioral-exe', help='Path to behavioral executable',
-                        type=str, action="store", required=True)
     parser.add_argument('--thrift-port', help='Thrift server port for table updates (base)',
                         type=int, action="store", default=9090)
     parser.add_argument('--json', help='Path to JSON config file',
                         type=str, action="store", required=True)
+    parser.add_argument('--onos-ip', help='ONOS-BMv2 controller IP address',
+                        type=str, action="store", required=True)
+    parser.add_argument('--onos-port', help='ONOS-BMv2 controller port',
+                        type=int, action="store", default=40123)
     args = parser.parse_args()
     setLogLevel('info')
     main(args)
