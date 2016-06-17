@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export P4_PATH="$( readlink -f "${DIR}/.." )"
-export BMV2_PATH=$P4_PATH/bmv2
+export BMV2_PATH=$P4_PATH/onos-bmv2
 export BMV2_EXE=$BMV2_PATH/targets/simple_switch/simple_switch
 export BMV2_JSON=$P4_PATH/p4src/build/default.json
 
@@ -27,7 +27,7 @@ p4c () {
           return
     fi
 
-    # FIXME: p4c-bmv2 seems to not work without sudo
+    # FIXME: p4c-bmv2 doesn't seem to work without sudo
     sudo p4c-bmv2 --json $P4JSON $P4SRC
 }
 
