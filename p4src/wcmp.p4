@@ -6,7 +6,6 @@
 
 #define SELECTOR_WIDTH 64
 
-/* wcmp machinery */
 header_type wcmp_meta_t {
     fields {
         groupId : 16;
@@ -37,10 +36,7 @@ field_list_calculation wcmp_hash {
 
 action wcmp_group(groupId) {
     modify_field(wcmp_meta.groupId, groupId);
-    modify_field_with_hash_based_offset(wcmp_meta.numBits, // dest field
-                                        2, // base 
-                                        wcmp_hash, // hash calculation
-                                        (SELECTOR_WIDTH - 2)); // size (modulo divisor)
+    modify_field_with_hash_based_offset(wcmp_meta.numBits, 2, wcmp_hash, (SELECTOR_WIDTH - 2));
 }
 
 action wcmp_set_selector() {
@@ -48,7 +44,6 @@ action wcmp_set_selector() {
                  (((1 << wcmp_meta.numBits) - 1) << (SELECTOR_WIDTH - wcmp_meta.numBits)));
 }
 
-/* Main table */
 table table0 {
     reads {
         standard_metadata.ingress_port : ternary;
@@ -93,11 +88,9 @@ counter wcmp_group_table_counter {
     min_width : 32;
 }
 
-/* Control flow */
 control ingress {
-    
     apply(table0) {
-        wcmp_group { // wcmp action was used
+        wcmp_group {
             apply(wcmp_set_selector_table) {
                 wcmp_set_selector {
                     apply(wcmp_group_table);
@@ -105,6 +98,5 @@ control ingress {
             }
         }
     }
-    
     process_port_counters();
 }

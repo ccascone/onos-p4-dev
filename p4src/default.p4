@@ -6,7 +6,6 @@
 
 table table0 {
     reads {
-        // TODO: add other fields
         standard_metadata.ingress_port : ternary;
         ethernet.dstAddr : ternary;
         ethernet.srcAddr : ternary;
@@ -27,8 +26,6 @@ counter table0_counter {
 }
 
 control ingress {
-    
     apply(table0);
-
     process_port_counters();
 }

@@ -4,7 +4,6 @@
 #include "include/actions.p4"
 #include "include/port_counters.p4"
 
-/* ECMP machinery */
 header_type ecmp_metadata_t {
     fields {
         groupId : 16;
@@ -34,11 +33,9 @@ field_list_calculation ecmp_hash {
 
 action ecmp_group(groupId, groupSize) {
     modify_field(ecmp_metadata.groupId, groupId);
-    // If we want to select a port number between 0 and 4 we use: (0 + (hash_value % 5))
     modify_field_with_hash_based_offset(ecmp_metadata.selector, 0, ecmp_hash, groupSize);
 }
 
-/* Main table */
 table table0 {
     reads {
         standard_metadata.ingress_port : ternary;
@@ -78,12 +75,10 @@ counter ecmp_group_table_counter {
 }
 
 control ingress {
-
     apply(table0) {
-        ecmp_group { // ecmp action was used
+        ecmp_group {
             apply(ecmp_group_table);
         }
     }
-    
     process_port_counters();
 }

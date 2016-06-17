@@ -2,5 +2,5 @@
 	path = p4c-bmv2
 	url = https://github.com/p4lang/p4c-bm.git
 [submodule "bmv2"]
-	path = bmv2
-	url = https://github.com/ccascone/behavioral-model.git
+	path = onos-bmv2
+	url = https://github.com/opennetworkinglab/behavioral-model.git
