@@ -36,7 +36,8 @@ p4cli () {
         echo "No argument supplied. Usage: p4cli THRIFT_PORT"
         return
     fi
-    sudo $BMV2_PATH/tools/runtime_CLI.py --thrift-port $1
+    tport=$(head -n 1 /tmp/bmv2-$1-thrift-port)
+    sudo $BMV2_PATH/tools/runtime_CLI.py --thrift-port $tport
 }
 
 p4db () {
@@ -44,7 +45,8 @@ p4db () {
         echo "No argument supplied. Usage: p4db THRIFT_PORT"
         return
     fi
-    sudo $BMV2_PATH/tools/p4dbg.py --thrift-port $1
+    tport=$(head -n 1 /tmp/bmv2-$1-thrift-port)
+    sudo $BMV2_PATH/tools/p4dbg.py --thrift-port $tport
 }
 
 p4nmsg () {
@@ -52,7 +54,8 @@ p4nmsg () {
         echo "No argument supplied. Usage: p4nmsg THRIFT_PORT"
         return
     fi
-    sudo $BMV2_PATH/tools/nanomsg_client.py --thrift-port $1
+    tport=$(head -n 1 /tmp/bmv2-$1-thrift-port)
+    sudo $BMV2_PATH/tools/nanomsg_client.py --thrift-port $tport
 }
 
 p4log () {

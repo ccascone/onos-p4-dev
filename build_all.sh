@@ -20,6 +20,7 @@ done
 # Build bmv2
 cd ../onos-bmv2/
 bash install_deps.sh
+sudo pip install thrift
 bash autogen.sh
 ./configure --enable-debugger
 make -j4
