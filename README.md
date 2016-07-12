@@ -2,8 +2,7 @@
 
 This repository maintains a set of tools and scripts to allow ONOS developers try the P4 experimental support.
 
-For more informations about the project visit:
-https://wiki.onosproject.org/display/ONOS/P4+experimental+support
+For more information, visit: https://wiki.onosproject.org/x/lou
 
 ## Quickstart
 
