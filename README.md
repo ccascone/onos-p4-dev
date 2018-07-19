@@ -1,5 +1,11 @@
 # ONOS+P4 Developer Tools
 
+***
+
+**DEPRECTAED** The content of this repository is deprecated. Starting with ONOS 1.12, official support for P4-enabled devices is available via P4Runtime. For more information please visit: https://wiki.onosproject.org/display/ONOS/P4+brigade#P4brigade-Learnmore
+
+***
+
 This repository maintains a set of tools and scripts to allow ONOS developers try the P4 experimental support.
 
 For more information, visit: https://wiki.onosproject.org/x/lou
